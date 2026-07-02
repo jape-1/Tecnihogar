@@ -1,0 +1,29 @@
+# Java / Maven
+backend/target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+
+# Env 
+.env
+.env.*
+*.env
+!.env.example
+!**/.env.example
+*.local
+
+# Credenciales / llaves
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+secrets.*
+credentials.json
+
+

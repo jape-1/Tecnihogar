@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="32" viewBox="0 0 150 32">
+  <rect x="0" y="2" width="28" height="28" rx="7" fill="#27500A"/>
+  <path d="M6 16.5 14 8l8 8.5" fill="none" stroke="#EAF3DE" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="10" y="16" width="8" height="7" rx="1" fill="#C0DD97"/>
+  <text x="36" y="22" font-family="Inter, sans-serif" font-size="18" font-weight="700" fill="#27500A">TecniHogar</text>
+</svg>
