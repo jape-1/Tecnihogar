@@ -26,6 +26,9 @@ public class TechnicianWork {
     @Column(name = "imagen_url", nullable = false, length = 500)
     private String imagenUrl;
 
+    @Column(name = "public_id", length = 255)
+    private String publicId;
+
     @Column(length = 200)
     private String descripcion;
 

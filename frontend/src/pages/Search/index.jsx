@@ -119,7 +119,7 @@ export default function Search() {
                   <p className="text-sm text-slate-500">{t.especialidad}</p>
                   <div className="mt-2 flex justify-center"><StarRating value={t.ratingPromedio} count={t.totalResenas} /></div>
                   <p className="mt-2 text-sm">Desde <b>S/ {t.tarifaDesde}</b></p>
-                  <p className="text-sm text-slate-500">{t.experienciaAnios} anios exp.</p>
+                  <p className="text-sm text-slate-500">{t.experienciaAnios} años exp.</p>
                   <p className="text-sm text-slate-500">{t.tiempoRespuesta}</p>
                 </div>
               ))}

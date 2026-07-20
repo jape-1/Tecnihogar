@@ -3,7 +3,9 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { requestsService } from '../../services/requests.service'
 import { reportsService } from '../../services/reports.service'
+import { useAuth } from '../../hooks/useAuth'
 import Avatar from '../../components/ui/Avatar'
+import Chat from '../../components/ui/Chat'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { formatDate } from '../../utils/formatDate'
 import { TIPOS_INCIDENTE } from '../../utils/constants'
@@ -13,6 +15,7 @@ const FLOW_LABEL = { PENDIENTE: 'Pendiente', ACEPTADA: 'Aceptada', EN_CURSO: 'En
 
 export default function RequestStatus() {
   const { id } = useParams()
+  const { isTecnico } = useAuth()
   const [showReport, setShowReport] = useState(false)
 
   const { data: req, isLoading, refetch } = useQuery({
@@ -76,14 +79,31 @@ export default function RequestStatus() {
         </dl>
       </div>
 
-      {/* Tecnico */}
+      {/* Contraparte: el cliente ve al tecnico; el tecnico ve al cliente */}
       <div className="card mt-6 flex items-center gap-4 p-6">
-        <Avatar nombre={req.tecnicoNombre} fotoUrl={req.tecnicoFotoUrl} size="md" />
-        <div className="flex-1">
-          <p className="font-semibold text-slate-800">{req.tecnicoNombre}</p>
-          <p className="text-sm text-slate-500">Telefono: {req.tecnicoTelefono}</p>
-        </div>
-        <button className="btn-secondary" onClick={() => setShowReport(true)}>Reportar problema</button>
+        {isTecnico ? (
+          <>
+            <Avatar nombre={req.clienteNombre} size="md" />
+            <div className="flex-1">
+              <p className="font-semibold text-slate-800">{req.clienteNombre}</p>
+              <p className="text-sm text-slate-500">Cliente</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <Avatar nombre={req.tecnicoNombre} fotoUrl={req.tecnicoFotoUrl} size="md" />
+            <div className="flex-1">
+              <p className="font-semibold text-slate-800">{req.tecnicoNombre}</p>
+              <p className="text-sm text-slate-500">Telefono: {req.tecnicoTelefono}</p>
+            </div>
+            <button className="btn-secondary" onClick={() => setShowReport(true)}>Reportar problema</button>
+          </>
+        )}
+      </div>
+
+      {/* Chat cliente <-> tecnico */}
+      <div className="mt-6">
+        <Chat requestId={req.id} />
       </div>
 
       {showReport && (

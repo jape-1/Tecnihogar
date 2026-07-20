@@ -40,15 +40,14 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Publico
+                        .requestMatchers("/api/auth/me").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/docs/**", "/api/swagger-ui/**", "/api/swagger-ui.html",
                                 "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        // El perfil propio del tecnico requiere auth (antes que el GET publico)
                         .requestMatchers("/api/technicians/me", "/api/technicians/me/**").authenticated()
                         // Lecturas publicas
                         .requestMatchers(HttpMethod.GET, "/api/technicians/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
-                        // Todo lo demas requiere autenticacion
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
@@ -60,9 +59,9 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
-                "http://localhost:5173",  // Vite directo
-                "http://localhost:5174",  // Vite con Docker
-                frontendUrl               // dominio de produccion (Vercel)
+                "http://localhost:5173",  
+                "http://localhost:5174",  
+                frontendUrl               
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

@@ -1,19 +1,45 @@
-version: '3.9'
-
+# Despliegue de PRODUCCION en EC2.
+# La base de datos NO va aqui: se usa Amazon RDS (PostgreSQL) via las variables DB_*.
+# Caddy expone 80/443 y hace proxy HTTPS -> backend:8080.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
 services:
   backend:
+    build: ./backend
     image: tecnihogar-backend:latest
     container_name: tecnihogar_backend
-    ports:
-      - "8080:8080"  
     environment:
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: ${DB_URL}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASS}
       JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}
-      SPRING_PROFILES_ACTIVE: prod
+    expose:
+      - "8080"
     restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: tecnihogar_caddy
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

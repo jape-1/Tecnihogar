@@ -2,6 +2,8 @@ package com.tecnihogar.service;
 
 import com.tecnihogar.dto.request.ServiceRequestCreateDTO;
 import com.tecnihogar.dto.request.ServiceRequestDTO;
+import com.tecnihogar.dto.stats.MonthCountDTO;
+import com.tecnihogar.dto.stats.StatsDTO;
 import com.tecnihogar.exception.BadRequestException;
 import com.tecnihogar.exception.ResourceNotFoundException;
 import com.tecnihogar.exception.UnauthorizedException;
@@ -13,6 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -58,14 +63,14 @@ public class ServiceRequestService {
                 "Nueva solicitud de servicio " + req.getCodigoReferencia() + " de " + cliente.getNombre(),
                 "SOLICITUD_NUEVA");
 
-        return mapper.toRequestDTO(req, mask(), false);
+        return mapper.toRequestDTO(req, phoneFor(req), false);
     }
 
     @Transactional(readOnly = true)
     public List<ServiceRequestDTO> myRequests() {
         User cliente = currentUser.getCurrentUser();
         return requestRepository.findByClienteIdOrderByCreatedAtDesc(cliente.getId()).stream()
-                .map(r -> mapper.toRequestDTO(r, mask(), reviewRepository.existsByRequestId(r.getId())))
+                .map(r -> mapper.toRequestDTO(r, phoneFor(r), reviewRepository.existsByRequestId(r.getId())))
                 .toList();
     }
 
@@ -78,7 +83,7 @@ public class ServiceRequestService {
         TechnicianProfile p = technicianRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new BadRequestException("El usuario no tiene un perfil de tecnico"));
         return requestRepository.findByTecnicoIdOrderByCreatedAtDesc(p.getId()).stream()
-                .map(r -> mapper.toRequestDTO(r, mask(), reviewRepository.existsByRequestId(r.getId())))
+                .map(r -> mapper.toRequestDTO(r, phoneFor(r), reviewRepository.existsByRequestId(r.getId())))
                 .toList();
     }
 
@@ -88,7 +93,7 @@ public class ServiceRequestService {
         ServiceRequest req = requestRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Solicitud no encontrada: " + id));
         requireInvolved(req, user);
-        return mapper.toRequestDTO(req, mask(), reviewRepository.existsByRequestId(req.getId()));
+        return mapper.toRequestDTO(req, phoneFor(req), reviewRepository.existsByRequestId(req.getId()));
     }
 
     @Transactional
@@ -122,7 +127,58 @@ public class ServiceRequestService {
             default -> { /* EN_CURSO / PENDIENTE: sin notificacion */ }
         }
 
-        return mapper.toRequestDTO(req, mask(), reviewRepository.existsByRequestId(req.getId()));
+        return mapper.toRequestDTO(req, phoneFor(req), reviewRepository.existsByRequestId(req.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public StatsDTO stats() {
+        User user = currentUser.getCurrentUser();
+        List<ServiceRequest> reqs;
+        BigDecimal ratingPromedio = null;
+        Integer totalResenas = null;
+
+        if (user.getRol() == Rol.TECNICO) {
+            TechnicianProfile p = technicianRepository.findByUserId(user.getId())
+                    .orElseThrow(() -> new BadRequestException("El usuario no tiene un perfil de tecnico"));
+            reqs = requestRepository.findByTecnicoIdOrderByCreatedAtDesc(p.getId());
+            ratingPromedio = p.getRatingPromedio() == null ? BigDecimal.ZERO : p.getRatingPromedio();
+            totalResenas = p.getTotalResenas() == null ? 0 : p.getTotalResenas();
+        } else {
+            reqs = requestRepository.findByClienteIdOrderByCreatedAtDesc(user.getId());
+        }
+
+        long total = reqs.size();
+        long activas = reqs.stream().filter(r -> switch (r.getEstado()) {
+            case PENDIENTE, ACEPTADA, EN_CURSO -> true;
+            default -> false;
+        }).count();
+        long completadas = reqs.stream().filter(r -> r.getEstado() == EstadoSolicitud.FINALIZADA).count();
+        long canceladas = reqs.stream().filter(r -> r.getEstado() == EstadoSolicitud.CANCELADA).count();
+
+        // Monto estimado: suma de la tarifa base del tecnico por cada servicio finalizado.
+        BigDecimal montoEstimado = reqs.stream()
+                .filter(r -> r.getEstado() == EstadoSolicitud.FINALIZADA)
+                .map(r -> r.getTecnico().getTarifaDesde() == null ? BigDecimal.ZERO : r.getTecnico().getTarifaDesde())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return new StatsDTO(total, activas, completadas, canceladas,
+                ratingPromedio, totalResenas, montoEstimado, buildPorMes(reqs));
+    }
+
+    // Servicios finalizados por mes durante los ultimos 6 meses (para el grafico del panel)
+    private List<MonthCountDTO> buildPorMes(List<ServiceRequest> reqs) {
+        String[] meses = {"Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"};
+        YearMonth now = YearMonth.now();
+        List<MonthCountDTO> out = new ArrayList<>();
+        for (int i = 5; i >= 0; i--) {
+            YearMonth ym = now.minusMonths(i);
+            long count = reqs.stream()
+                    .filter(r -> r.getEstado() == EstadoSolicitud.FINALIZADA)
+                    .filter(r -> r.getUpdatedAt() != null && YearMonth.from(r.getUpdatedAt()).equals(ym))
+                    .count();
+            out.add(new MonthCountDTO(meses[ym.getMonthValue() - 1], count));
+        }
+        return out;
     }
 
     private void requireInvolved(ServiceRequest req, User user) {
@@ -133,9 +189,17 @@ public class ServiceRequestService {
         }
     }
 
-    // El PRD pide mostrar el telefono parcialmente oculto. No hay columna de telefono,
-    // se devuelve un placeholder enmascarado consistente con el diseno.
-    private String mask() {
-        return "+51 9** *** **7";
+    // El telefono se revela completo solo cuando el servicio esta EN_CURSO o FINALIZADA;
+    // en PENDIENTE / ACEPTADA se muestra parcialmente oculto.
+    private String phoneFor(ServiceRequest req) {
+        String tel = req.getTecnico().getTelefono();
+        if (tel == null || tel.isBlank()) return "No disponible";
+        EstadoSolicitud e = req.getEstado();
+        if (e == EstadoSolicitud.EN_CURSO || e == EstadoSolicitud.FINALIZADA) {
+            return tel;
+        }
+        String digits = tel.replaceAll("\\D", "");
+        String last3 = digits.length() >= 3 ? digits.substring(digits.length() - 3) : digits;
+        return "+51 9XX XXX " + last3;
     }
 }

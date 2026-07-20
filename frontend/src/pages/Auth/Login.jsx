@@ -11,7 +11,9 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const from = location.state?.from || '/'
+  // Mensaje informativo (ej: tras registrarse) y destino de retorno
+  const message = location.state?.message
+  const returnTo = location.state?.returnTo || location.state?.from
 
   const submit = async (e) => {
     e.preventDefault()
@@ -20,8 +22,8 @@ export default function Login() {
     try {
       const auth = await authService.login(form)
       login(auth)
-      const dest = from !== '/login'
-        ? from
+      const dest = returnTo
+        ? returnTo
         : auth.rol === 'TECNICO' ? '/tecnico/panel' : '/cliente/panel'
       navigate(dest, { replace: true })
     } catch (err) {
@@ -37,6 +39,7 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-slate-800">Iniciar sesion</h1>
         <p className="mt-1 text-sm text-slate-500">Ingresa a tu cuenta de TecniHogar</p>
 
+        {message && <div className="mt-4 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{message}</div>}
         {error && <div className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
 
         <form onSubmit={submit} className="mt-6 space-y-4">
@@ -48,7 +51,7 @@ export default function Login() {
           <div>
             <label className="label">Contrasena</label>
             <input type="password" required className="input" value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" />
+              onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="********" />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? 'Ingresando...' : 'Iniciar sesion'}
@@ -58,13 +61,6 @@ export default function Login() {
         <p className="mt-6 text-center text-sm text-slate-500">
           No tienes cuenta? <Link to="/register" className="font-semibold text-green-700 hover:underline">Registrate</Link>
         </p>
-
-        <div className="mt-6 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-          <p className="font-semibold">Cuenta de prueba (tecnico):</p>
-          <p>carlos@tecnihogar.pe / tecni1234</p>
-          <p className="mt-1 font-semibold">Cuenta de prueba (cliente):</p>
-          <p>rosa@tecnihogar.pe / tecni1234</p>
-        </div>
       </div>
     </div>
   )

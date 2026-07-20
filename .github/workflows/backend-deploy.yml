@@ -1,0 +1,50 @@
+name: Backend Deploy (EC2)
+
+# CD del backend: al hacer push a main (o manualmente), corre las pruebas y,
+# si pasan, se conecta por SSH al EC2 y redepliega con Docker Compose.
+#
+# Requiere estos SECRETS en el repo (Settings -> Secrets and variables -> Actions):
+#   EC2_HOST     -> IP publica o dominio del EC2 (ej. tecnihogar.duckdns.org)
+#   EC2_USER     -> usuario SSH (ec2-user en Amazon Linux)
+#   EC2_SSH_KEY  -> contenido COMPLETO de la clave privada .pem
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'docker-compose.prod.yml'
+      - 'Caddyfile'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch:   # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Compilar y probar
+        run: mvn -B verify
+
+  deploy:
+    needs: test          # solo despliega si las pruebas pasan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Redeploy en el EC2 por SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/Tecnihogar
+            git pull origin main
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+            docker image prune -f

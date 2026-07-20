@@ -12,24 +12,23 @@ export const CATEGORIAS = [
   { value: 'OTROS', label: 'Otros', icon: 'grid', desc: 'Otros servicios del hogar' },
 ]
 
+// Catalogo oficial de 19 distritos de Lima (PRD)
 export const DISTRITOS_LIMA = [
-  'Miraflores', 'San Isidro', 'Surco', 'Barranco', 'La Molina', 'San Borja',
-  'Chorrillos', 'San Miguel', 'Lince', 'Jesus Maria', 'Magdalena', 'Pueblo Libre',
-  'San Juan de Lurigancho', 'Los Olivos', 'San Martin de Porres', 'Ate',
+  'Barranco', 'Breña', 'Chorrillos', 'Jesús María', 'La Molina', 'La Victoria',
+  'Lince', 'Los Olivos', 'Magdalena del Mar', 'Miraflores', 'Pueblo Libre', 'Rímac',
+  'San Borja', 'San Isidro', 'San Miguel', 'Santiago de Surco', 'Surquillo',
+  'Villa El Salvador', 'Villa María del Triunfo',
 ]
 
-export const TIPOS_SERVICIO = [
-  'Gasfiteria - Fuga',
-  'Gasfiteria - Instalacion',
-  'Gasfiteria - Desague',
-  'Electricidad - Tablero',
-  'Electricidad - Instalacion',
-  'Electricidad - Reparacion',
-  'Mantenimiento - Pintura',
-  'Mantenimiento - Carpinteria',
-  'Mantenimiento - General',
-  'Otros',
-]
+// Tipos de servicio agrupados por especialidad (para filtrar en la solicitud)
+export const TIPOS_SERVICIO_POR_ESP = {
+  GASFITERIA: ['Gasfiteria - Fuga', 'Gasfiteria - Instalacion', 'Gasfiteria - Desague'],
+  ELECTRICIDAD: ['Electricidad - Tablero', 'Electricidad - Instalacion', 'Electricidad - Reparacion'],
+  MANTENIMIENTO: ['Mantenimiento - Pintura', 'Mantenimiento - Carpinteria', 'Mantenimiento - General'],
+  OTROS: ['Otros'],
+}
+
+export const TIPOS_SERVICIO = Object.values(TIPOS_SERVICIO_POR_ESP).flat()
 
 export const ESTADOS = ['PENDIENTE', 'ACEPTADA', 'EN_CURSO', 'FINALIZADA', 'CANCELADA']
 

@@ -76,44 +76,38 @@ public class TechnicianService {
     public TechnicianDetailDTO getById(Long id) {
         TechnicianProfile p = technicianRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tecnico no encontrado: " + id));
-
-        List<String> zonas = mapper.zonas(p);
-        List<WorkDTO> works = p.getWorks().stream().map(mapper::toWorkDTO).toList();
-        List<ReviewDTO> resenas = reviewRepository.findByTecnicoIdOrderByCreatedAtDesc(id).stream()
-                .map(mapper::toReviewDTO).toList();
-
-        return new TechnicianDetailDTO(
-                p.getId(), p.getUser().getId(), p.getUser().getNombre(),
-                p.getEspecialidad().name(), p.getExperienciaAnios(), p.getBio(),
-                p.getTarifaDesde(), p.getTiempoRespuesta(), p.getGarantiaDias(),
-                p.getDisponible(), p.getVerificado(), p.getRatingPromedio(),
-                p.getTotalResenas(), p.getFotoUrl(), p.getPerfilCompletitud(),
-                zonas, works, resenas
-        );
+        return buildDetail(p, false);
     }
 
     @Transactional(readOnly = true)
     public TechnicianDetailDTO getMyProfile() {
-        return getById(requireOwnProfile().getId());
+        return buildDetail(requireOwnProfile(), true);
     }
 
     @Transactional
     public TechnicianDetailDTO updateMyProfile(TechnicianUpdateDTO dto) {
         TechnicianProfile p = requireOwnProfile();
+        if (dto.nombre() != null && !dto.nombre().isBlank()) p.getUser().setNombre(dto.nombre());
         if (dto.especialidad() != null) p.setEspecialidad(dto.especialidad());
         if (dto.experienciaAnios() != null) p.setExperienciaAnios(dto.experienciaAnios());
         if (dto.bio() != null) p.setBio(dto.bio());
         if (dto.tarifaDesde() != null) p.setTarifaDesde(dto.tarifaDesde());
         if (dto.tiempoRespuesta() != null) p.setTiempoRespuesta(dto.tiempoRespuesta());
         if (dto.garantiaDias() != null) p.setGarantiaDias(dto.garantiaDias());
-        if (dto.zonas() != null) {
-            p.getZonas().clear();
-            for (String d : dto.zonas()) {
-                p.getZonas().add(TechnicianZone.builder().tecnico(p).distrito(d).build());
-            }
-        }
+        if (dto.telefono() != null) p.setTelefono(dto.telefono());
+        if (dto.zonas() != null) replaceZones(p, dto.zonas());
+        p.setPerfilCompletitud(ProfileCompletion.calcular(p));
         technicianRepository.save(p);
-        return getById(p.getId());
+        return buildDetail(p, true);
+    }
+
+    @Transactional
+    public List<String> updateZones(List<String> zonas) {
+        TechnicianProfile p = requireOwnProfile();
+        replaceZones(p, zonas);
+        p.setPerfilCompletitud(ProfileCompletion.calcular(p));
+        technicianRepository.save(p);
+        return p.getZonas().stream().map(TechnicianZone::getDistrito).toList();
     }
 
     @Transactional
@@ -127,19 +121,21 @@ public class TechnicianService {
     @Transactional
     public String updatePhoto(MultipartFile file) throws IOException {
         TechnicianProfile p = requireOwnProfile();
-        String url = cloudinaryService.uploadImage(file, "profiles");
-        p.setFotoUrl(url);
+        CloudinaryService.UploadResult up = cloudinaryService.uploadImage(file, "profiles");
+        p.setFotoUrl(up.url());
+        p.setPerfilCompletitud(ProfileCompletion.calcular(p));
         technicianRepository.save(p);
-        return url;
+        return up.url();
     }
 
     @Transactional
     public WorkDTO addWork(MultipartFile file, String descripcion) throws IOException {
         TechnicianProfile p = requireOwnProfile();
-        String url = cloudinaryService.uploadImage(file, "works");
+        CloudinaryService.UploadResult up = cloudinaryService.uploadImage(file, "works");
         TechnicianWork work = TechnicianWork.builder()
-                .tecnico(p).imagenUrl(url).descripcion(descripcion).build();
+                .tecnico(p).imagenUrl(up.url()).publicId(up.publicId()).descripcion(descripcion).build();
         p.getWorks().add(work);
+        p.setPerfilCompletitud(ProfileCompletion.calcular(p));
         technicianRepository.save(p);
         return mapper.toWorkDTO(p.getWorks().get(p.getWorks().size() - 1));
     }
@@ -147,9 +143,42 @@ public class TechnicianService {
     @Transactional
     public void deleteWork(Long workId) {
         TechnicianProfile p = requireOwnProfile();
-        boolean removed = p.getWorks().removeIf(w -> w.getId().equals(workId));
-        if (!removed) throw new ResourceNotFoundException("Trabajo no encontrado: " + workId);
+        TechnicianWork work = p.getWorks().stream()
+                .filter(w -> w.getId().equals(workId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Trabajo no encontrado: " + workId));
+        cloudinaryService.deleteByPublicId(work.getPublicId());
+        p.getWorks().remove(work);
+        p.setPerfilCompletitud(ProfileCompletion.calcular(p));
         technicianRepository.save(p);
+    }
+
+    // ---- helpers ----
+
+    private TechnicianDetailDTO buildDetail(TechnicianProfile p, boolean includePhone) {
+        List<String> zonas = mapper.zonas(p);
+        List<WorkDTO> works = p.getWorks().stream().map(mapper::toWorkDTO).toList();
+        List<ReviewDTO> resenas = reviewRepository.findByTecnicoIdOrderByCreatedAtDesc(p.getId()).stream()
+                .map(mapper::toReviewDTO).toList();
+
+        return new TechnicianDetailDTO(
+                p.getId(), p.getUser().getId(), p.getUser().getNombre(),
+                p.getEspecialidad().name(), p.getExperienciaAnios(), p.getBio(),
+                p.getTarifaDesde(), p.getTiempoRespuesta(), p.getGarantiaDias(),
+                p.getDisponible(), p.getVerificado(), p.getRatingPromedio(),
+                p.getTotalResenas(), p.getFotoUrl(), p.getPerfilCompletitud(),
+                includePhone ? p.getTelefono() : null,
+                zonas, works, resenas
+        );
+    }
+
+    private void replaceZones(TechnicianProfile p, List<String> zonas) {
+        p.getZonas().clear();
+        for (String d : zonas) {
+            if (d != null && !d.isBlank()) {
+                p.getZonas().add(TechnicianZone.builder().tecnico(p).distrito(d).build());
+            }
+        }
     }
 
     private TechnicianProfile requireOwnProfile() {

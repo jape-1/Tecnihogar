@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
+import logo from '../../assets/logotecnihogar.jpeg'
 
 export default function Footer() {
   return (
     <footer className="mt-16 border-t border-slate-200 bg-white">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <div className="text-lg font-bold text-green-800">TecniHogar</div>
+          <img src={logo} alt="TecniHogar" className="h-16 w-auto" />
           <p className="mt-2 text-sm text-slate-500">
             Conectamos hogares con tecnicos verificados en gasfiteria, electricidad y mantenimiento en Lima.
           </p>

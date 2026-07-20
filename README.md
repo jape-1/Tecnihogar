@@ -52,14 +52,14 @@ tecnihogar/
 ├── backend/          Spring Boot 3 + Java 17 (API REST, JWT, Flyway, Cloudinary)
 │   └── src/main/java/com/tecnihogar/
 │       ├── config/       SecurityConfig, CloudinaryConfig, OpenApiConfig
-│       ├── controller/   Auth, Technician, ServiceRequest, Review, Notification, Favorite, Report
+│       ├── controller/   Auth, Technician, ServiceRequest, Message, Review, Notification, Favorite, Report
 │       ├── service/      Lógica de negocio
 │       ├── repository/   Spring Data JPA
 │       ├── model/        Entidades JPA + enums
 │       ├── dto/          Records de request/response
 │       ├── security/     JwtUtil, JwtFilter, UserDetailsServiceImpl
 │       └── exception/    GlobalExceptionHandler
-│   └── src/main/resources/db/migration/  V1..V10 (Flyway)
+│   └── src/main/resources/db/migration/  V1..V12 (Flyway)
 ├── frontend/         React 18 + Vite + Tailwind
 │   └── src/
 │       ├── components/  layout, ui, forms
@@ -91,8 +91,11 @@ tecnihogar/
 | POST | `/api/requests` | CLIENTE | Crear solicitud |
 | GET | `/api/requests/my` | CLIENTE | Mis solicitudes |
 | GET | `/api/requests/incoming` | TÉCNICO | Solicitudes entrantes |
+| GET | `/api/requests/stats` | Auth | Estadísticas del panel (adapta según rol) |
 | GET | `/api/requests/{id}` | Auth | Detalle (solo partes involucradas) |
 | PATCH | `/api/requests/{id}/status` | TÉCNICO | `{estado}` |
+| GET | `/api/requests/{id}/messages` | Auth | Mensajes del chat (solo partes involucradas) |
+| POST | `/api/requests/{id}/messages` | Auth | Enviar mensaje (`{contenido}`) |
 | POST | `/api/reviews` | CLIENTE | `{requestId, estrellas, comentario}` |
 | GET | `/api/reviews/technician/{id}` | Público | Reseñas de un técnico |
 | GET | `/api/notifications/my` | Auth | Mis notificaciones |
@@ -101,6 +104,32 @@ tecnihogar/
 | DELETE | `/api/favorites/{technicianId}` | CLIENTE | Quitar favorito |
 | GET | `/api/favorites/my` | CLIENTE | Mis favoritos |
 | POST | `/api/reports` | CLIENTE | `{requestId, tipoIncidente, descripcion}` |
+
+## Documentación de la API (Swagger / OpenAPI)
+
+La API se documenta automáticamente con **SpringDoc OpenAPI 3**. Con el backend corriendo:
+
+- **Swagger UI**: <http://localhost:8081/api/swagger-ui>
+- **Especificación OpenAPI (JSON)**: <http://localhost:8081/api/docs>
+
+Los endpoints están agrupados por dominio mediante `@Tag`, y cada operación tiene una descripción (`@Operation`):
+
+| Tag | Descripción |
+|-----|-------------|
+| Autenticación | Registro, inicio de sesión y usuario actual |
+| Técnicos | Búsqueda, perfil público y gestión del perfil propio |
+| Solicitudes | Solicitudes de servicio, estado y estadísticas del panel |
+| Mensajes | Chat entre el cliente y el técnico dentro de una solicitud |
+| Reseñas | Calificaciones y comentarios de los servicios |
+| Notificaciones | Notificaciones del usuario autenticado |
+| Favoritos | Técnicos favoritos del cliente |
+| Reportes | Reportes de incidencias sobre un servicio |
+
+### Probar endpoints protegidos
+
+1. Ejecuta `POST /api/auth/login` con un usuario del seed y copia el `token` de la respuesta.
+2. Pulsa el botón **Authorize** 🔒 (arriba a la derecha) y pega el token.
+3. El esquema **Bearer JWT** ya está configurado, así que todas las llamadas siguientes irán autenticadas.
 
 ## Credenciales de prueba (seed)
 

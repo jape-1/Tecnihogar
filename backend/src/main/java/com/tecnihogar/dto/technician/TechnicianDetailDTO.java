@@ -21,6 +21,7 @@ public record TechnicianDetailDTO(
         Integer totalResenas,
         String fotoUrl,
         Integer perfilCompletitud,
+        String telefono,
         List<String> zonas,
         List<WorkDTO> works,
         List<ReviewDTO> resenas

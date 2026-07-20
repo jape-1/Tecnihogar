@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTechnician } from '../../hooks/useTechnicians'
 import { requestsService } from '../../services/requests.service'
 import Stepper from '../../components/ui/Stepper'
 import Avatar from '../../components/ui/Avatar'
-import { TIPOS_SERVICIO, DISTRITOS_LIMA } from '../../utils/constants'
+import { TIPOS_SERVICIO, TIPOS_SERVICIO_POR_ESP, DISTRITOS_LIMA } from '../../utils/constants'
 
 const STEPS = ['Servicio', 'Detalles', 'Confirmar']
+
+function tomorrowISO() {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
 
 export default function ServiceRequest() {
   const { technicianId } = useParams()
@@ -22,20 +28,28 @@ export default function ServiceRequest() {
   })
 
   const set = (k, v) => setForm({ ...form, [k]: v })
+  const minDate = tomorrowISO()
 
-  const canNext =
-    (step === 0 && form.tipoServicio && form.descripcion) ||
-    (step === 1 && form.direccion && form.distrito && form.fechaPreferida && form.horaPreferida)
+  const tipos = useMemo(
+    () => (tecnico?.especialidad && TIPOS_SERVICIO_POR_ESP[tecnico.especialidad]) || TIPOS_SERVICIO,
+    [tecnico],
+  )
+
+  // Validaciones por paso
+  const descripcionOk = form.descripcion.trim().length >= 20
+  const horaOk = form.horaPreferida >= '08:00' && form.horaPreferida <= '20:00'
+  const fechaOk = form.fechaPreferida && form.fechaPreferida >= minDate
+
+  const step1Ok = form.tipoServicio && descripcionOk
+  const step2Ok = form.direccion.trim() && form.distrito && fechaOk && horaOk
+  const canNext = (step === 0 && step1Ok) || (step === 1 && step2Ok)
 
   const submit = async () => {
     setError('')
     setSubmitting(true)
     try {
-      const created = await requestsService.create({
-        tecnicoId: Number(technicianId),
-        ...form,
-      })
-      navigate(`/solicitud/${created.id}`)
+      const created = await requestsService.create({ tecnicoId: Number(technicianId), ...form })
+      navigate(`/solicitud/${created.id}`, { state: { message: 'Solicitud enviada correctamente' } })
     } catch (err) {
       setError(err.response?.data?.message || 'No se pudo crear la solicitud')
     } finally {
@@ -58,14 +72,17 @@ export default function ServiceRequest() {
                   <label className="label">Tipo de servicio</label>
                   <select className="input" value={form.tipoServicio} onChange={(e) => set('tipoServicio', e.target.value)}>
                     <option value="">Selecciona...</option>
-                    {TIPOS_SERVICIO.map((t) => <option key={t} value={t}>{t}</option>)}
+                    {tipos.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="label">Descripcion del problema</label>
                   <textarea rows={4} className="input" value={form.descripcion}
                     onChange={(e) => set('descripcion', e.target.value)}
-                    placeholder="Describe lo que necesitas..." />
+                    placeholder="Describe lo que necesitas (minimo 20 caracteres)..." />
+                  <p className={`mt-1 text-xs ${descripcionOk ? 'text-slate-400' : 'text-rose-500'}`}>
+                    {form.descripcion.trim().length}/20 caracteres minimos
+                  </p>
                 </div>
               </div>
             )}
@@ -87,11 +104,15 @@ export default function ServiceRequest() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="label">Fecha preferida</label>
-                    <input type="date" className="input" value={form.fechaPreferida} onChange={(e) => set('fechaPreferida', e.target.value)} />
+                    <input type="date" min={minDate} className="input" value={form.fechaPreferida}
+                      onChange={(e) => set('fechaPreferida', e.target.value)} />
+                    {form.fechaPreferida && !fechaOk && <p className="mt-1 text-xs text-rose-500">Debe ser desde manana</p>}
                   </div>
                   <div>
-                    <label className="label">Hora preferida</label>
-                    <input type="time" className="input" value={form.horaPreferida} onChange={(e) => set('horaPreferida', e.target.value)} />
+                    <label className="label">Hora (08:00-20:00)</label>
+                    <input type="time" min="08:00" max="20:00" className="input" value={form.horaPreferida}
+                      onChange={(e) => set('horaPreferida', e.target.value)} />
+                    {form.horaPreferida && !horaOk && <p className="mt-1 text-xs text-rose-500">Fuera del rango 08:00-20:00</p>}
                   </div>
                 </div>
               </div>
@@ -115,7 +136,7 @@ export default function ServiceRequest() {
               <button className="btn-primary" disabled={!canNext} onClick={() => setStep((s) => s + 1)}>Continuar</button>
             ) : (
               <button className="btn-primary" disabled={submitting} onClick={submit}>
-                {submitting ? 'Enviando...' : 'Confirmar y enviar'}
+                {submitting ? 'Enviando...' : 'Confirmar y enviar solicitud'}
               </button>
             )}
           </div>

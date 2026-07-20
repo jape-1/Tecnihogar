@@ -64,6 +64,13 @@ public class ReviewService {
                 .map(mapper::toReviewDTO).toList();
     }
 
+    @Transactional(readOnly = true)
+    public ReviewDTO byRequest(Long requestId) {
+        return reviewRepository.findByRequestId(requestId)
+                .map(mapper::toReviewDTO)
+                .orElse(null);
+    }
+
     private void recalcRating(TechnicianProfile tecnico) {
         Double avg = reviewRepository.findAverageRatingByTecnicoId(tecnico.getId());
         long count = reviewRepository.countByTecnicoId(tecnico.getId());

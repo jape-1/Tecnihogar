@@ -1,0 +1,7 @@
+# Caddy sirve como reverse proxy con HTTPS automatico (Let's Encrypt).
+# {$DOMAIN} se toma de la variable de entorno DOMAIN (ej: tecnihogar.duckdns.org).
+# Todo el trafico HTTPS entrante se redirige al contenedor del backend en el puerto 8080.
+{$DOMAIN} {
+    encode gzip
+    reverse_proxy backend:8080
+}

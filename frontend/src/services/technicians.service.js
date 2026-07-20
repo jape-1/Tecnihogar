@@ -8,6 +8,8 @@ export const techniciansService = {
   updateMe: (data) => api.put('/technicians/me', data).then((r) => r.data),
   setAvailability: (disponible) =>
     api.patch('/technicians/me/availability', { disponible }).then((r) => r.data),
+  updateZones: (zonas) =>
+    api.put('/technicians/me/zones', { zonas }).then((r) => r.data),
   uploadPhoto: (file) => {
     const form = new FormData()
     form.append('file', file)

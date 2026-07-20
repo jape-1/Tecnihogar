@@ -1,6 +1,7 @@
 package com.tecnihogar.dto.auth;
 
 import com.tecnihogar.model.Rol;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,9 +17,13 @@ public record RegisterRequest(
         String email,
 
         @NotBlank(message = "La contrasena es obligatoria")
-        @Size(min = 6, message = "La contrasena debe tener al menos 6 caracteres")
+        @Size(min = 8, message = "La contrasena debe tener al menos 8 caracteres")
         String password,
 
         @NotNull(message = "El rol es obligatorio")
-        Rol rol
+        Rol rol,
+
+        // Opcional: solo se usa cuando rol = TECNICO
+        @Valid
+        TechnicianRegisterData tecnico
 ) {}

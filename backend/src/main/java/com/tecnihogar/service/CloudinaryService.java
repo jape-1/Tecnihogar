@@ -15,7 +15,10 @@ public class CloudinaryService {
 
     private final Cloudinary cloudinary;
 
-    public String uploadImage(MultipartFile file, String folder) throws IOException {
+    /** Resultado de una subida: URL segura + public_id (para poder borrar despues). */
+    public record UploadResult(String url, String publicId) {}
+
+    public UploadResult uploadImage(MultipartFile file, String folder) throws IOException {
         Map<String, Object> params = ObjectUtils.asMap(
                 "folder", "tecnihogar/" + folder,
                 "transformation", new com.cloudinary.Transformation<>()
@@ -23,10 +26,11 @@ public class CloudinaryService {
                         .quality("auto").fetchFormat("auto")
         );
         Map<?, ?> result = cloudinary.uploader().upload(file.getBytes(), params);
-        return (String) result.get("secure_url");
+        return new UploadResult((String) result.get("secure_url"), (String) result.get("public_id"));
     }
 
     public void deleteByPublicId(String publicId) {
+        if (publicId == null || publicId.isBlank()) return;
         try {
             cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
         } catch (IOException e) {

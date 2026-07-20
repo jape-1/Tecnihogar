@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import Avatar from '../ui/Avatar'
+import logo from '../../assets/logotecnihogar.jpeg'
 
 export default function Navbar() {
   const { isAuthenticated, isCliente, isTecnico, user, logout } = useAuth()
@@ -21,9 +22,8 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-800 text-green-50">🏠</span>
-          <span className="text-lg font-bold text-green-800">TecniHogar</span>
+        <Link to="/" className="flex items-center">
+          <img src={logo} alt="TecniHogar" className="h-11 w-auto sm:h-12" />
         </Link>
 
         {/* Desktop */}

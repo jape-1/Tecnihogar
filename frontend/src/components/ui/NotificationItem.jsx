@@ -1,4 +1,4 @@
-import { formatDateTime } from '../../utils/formatDate'
+import { formatRelative } from '../../utils/formatDate'
 
 export default function NotificationItem({ notification }) {
   const { mensaje, leida, createdAt } = notification
@@ -7,7 +7,7 @@ export default function NotificationItem({ notification }) {
       <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${leida ? 'bg-slate-300' : 'bg-green-600'}`} />
       <div className="min-w-0">
         <p className="text-sm text-slate-700">{mensaje}</p>
-        <p className="mt-0.5 text-xs text-slate-400">{formatDateTime(createdAt)}</p>
+        <p className="mt-0.5 text-xs text-slate-400">{formatRelative(createdAt)}</p>
       </div>
     </div>
   )

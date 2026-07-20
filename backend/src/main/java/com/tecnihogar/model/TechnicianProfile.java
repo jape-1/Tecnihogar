@@ -60,6 +60,9 @@ public class TechnicianProfile {
     @Column(name = "foto_url", length = 500)
     private String fotoUrl;
 
+    @Column(length = 30)
+    private String telefono;
+
     @Column(name = "perfil_completitud")
     private Integer perfilCompletitud;
 

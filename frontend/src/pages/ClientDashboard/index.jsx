@@ -8,24 +8,35 @@ import { reviewsService } from '../../services/reviews.service'
 import { useAuth } from '../../hooks/useAuth'
 import StatusBadge from '../../components/ui/StatusBadge'
 import StarRating from '../../components/ui/StarRating'
+import StatsPanel from '../../components/ui/StatsPanel'
 import NotificationItem from '../../components/ui/NotificationItem'
 import { formatDate } from '../../utils/formatDate'
+
+const ACTIVAS = ['PENDIENTE', 'ACEPTADA', 'EN_CURSO']
+const HISTORIAL = ['FINALIZADA', 'CANCELADA']
 
 export default function ClientDashboard() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const [tab, setTab] = useState('solicitudes')
   const [reviewFor, setReviewFor] = useState(null)
 
   const { data: requests = [] } = useQuery({ queryKey: ['requests', 'my'], queryFn: requestsService.my })
   const { data: notifications = [] } = useQuery({ queryKey: ['notifications', 'my'], queryFn: notificationsService.my })
   const { data: favorites = [] } = useQuery({ queryKey: ['favorites', 'my'], queryFn: favoritesService.my })
+  const { data: stats } = useQuery({
+    queryKey: ['requests', 'stats'],
+    queryFn: requestsService.stats,
+    enabled: tab === 'estadisticas',
+  })
 
   const markAll = useMutation({
     mutationFn: notificationsService.markAllRead,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', 'my'] }),
   })
 
-  const activas = requests.filter((r) => ['PENDIENTE', 'ACEPTADA', 'EN_CURSO'].includes(r.estado)).length
+  const activas = requests.filter((r) => ACTIVAS.includes(r.estado))
+  const historial = requests.filter((r) => HISTORIAL.includes(r.estado))
   const completadas = requests.filter((r) => r.estado === 'FINALIZADA').length
 
   return (
@@ -40,72 +51,66 @@ export default function ClientDashboard() {
 
       {/* Metricas */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Metric label="Solicitudes activas" value={activas} />
+        <Metric label="Solicitudes activas" value={activas.length} />
         <Metric label="Servicios completados" value={completadas} />
         <Metric label="Tecnicos favoritos" value={favorites.length} />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        {/* Tabla de solicitudes */}
-        <div className="card overflow-hidden">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-semibold text-slate-800">Mis solicitudes</h2>
-          </div>
-          {requests.length === 0 ? (
-            <div className="p-8 text-center text-sm text-slate-400">Aun no tienes solicitudes.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-                  <tr>
-                    <th className="px-4 py-3">Codigo</th>
-                    <th className="px-4 py-3">Tecnico</th>
-                    <th className="px-4 py-3">Servicio</th>
-                    <th className="px-4 py-3">Estado</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((r) => (
-                    <tr key={r.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3 font-medium text-slate-700">{r.codigoReferencia}</td>
-                      <td className="px-4 py-3 text-slate-600">{r.tecnicoNombre}</td>
-                      <td className="px-4 py-3 text-slate-600">{r.tipoServicio}</td>
-                      <td className="px-4 py-3"><StatusBadge estado={r.estado} /></td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Link to={`/solicitud/${r.id}`} className="text-green-700 hover:underline">Ver</Link>
-                          {r.estado === 'FINALIZADA' && !r.tieneResena && (
-                            <button onClick={() => setReviewFor(r)} className="text-amber-600 hover:underline">Resenar</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      {/* Tabs */}
+      <div className="mt-6 flex gap-2 border-b border-slate-200">
+        <TabButton active={tab === 'solicitudes'} onClick={() => setTab('solicitudes')}>Solicitudes</TabButton>
+        <TabButton active={tab === 'historial'} onClick={() => setTab('historial')}>Historial</TabButton>
+        <TabButton active={tab === 'estadisticas'} onClick={() => setTab('estadisticas')}>Estadisticas</TabButton>
+      </div>
 
-        {/* Notificaciones */}
-        <aside className="card p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800">Notificaciones</h2>
-            <button onClick={() => markAll.mutate()} disabled={markAll.isPending}
-              className="text-xs font-medium text-green-700 hover:underline">
-              Marcar leidas
-            </button>
-          </div>
-          <div className="mt-4 space-y-2">
-            {notifications.length === 0 ? (
-              <p className="text-sm text-slate-400">Sin notificaciones.</p>
+      {tab === 'solicitudes' && (
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+          {/* Tabla de solicitudes activas */}
+          <div className="card overflow-hidden">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <h2 className="font-semibold text-slate-800">Solicitudes activas</h2>
+            </div>
+            {activas.length === 0 ? (
+              <div className="p-8 text-center text-sm text-slate-400">No tienes solicitudes activas.</div>
             ) : (
-              notifications.map((n) => <NotificationItem key={n.id} notification={n} />)
+              <RequestTable rows={activas} onReview={setReviewFor} />
             )}
           </div>
-        </aside>
-      </div>
+
+          {/* Notificaciones */}
+          <aside className="card p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-slate-800">Notificaciones</h2>
+              <button onClick={() => markAll.mutate()} disabled={markAll.isPending}
+                className="text-xs font-medium text-green-700 hover:underline">
+                Marcar leidas
+              </button>
+            </div>
+            <div className="mt-4 space-y-2">
+              {notifications.length === 0 ? (
+                <p className="text-sm text-slate-400">Sin notificaciones.</p>
+              ) : (
+                notifications.slice(0, 5).map((n) => <NotificationItem key={n.id} notification={n} />)
+              )}
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {tab === 'historial' && (
+        <div className="card mt-6 overflow-hidden">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <h2 className="font-semibold text-slate-800">Historial de servicios</h2>
+          </div>
+          {historial.length === 0 ? (
+            <div className="p-8 text-center text-sm text-slate-400">Aun no tienes servicios finalizados o cancelados.</div>
+          ) : (
+            <RequestTable rows={historial} onReview={setReviewFor} showFecha />
+          )}
+        </div>
+      )}
+
+      {tab === 'estadisticas' && <StatsPanel stats={stats} esTecnico={false} />}
 
       {reviewFor && (
         <ReviewModal request={reviewFor} onClose={() => setReviewFor(null)}
@@ -115,6 +120,55 @@ export default function ClientDashboard() {
           }} />
       )}
     </div>
+  )
+}
+
+function RequestTable({ rows, onReview, showFecha }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+          <tr>
+            <th className="px-4 py-3">Codigo</th>
+            <th className="px-4 py-3">Tecnico</th>
+            <th className="px-4 py-3">Servicio</th>
+            {showFecha && <th className="px-4 py-3">Fecha</th>}
+            <th className="px-4 py-3">Estado</th>
+            <th className="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id} className="border-t border-slate-100">
+              <td className="px-4 py-3 font-medium text-slate-700">{r.codigoReferencia}</td>
+              <td className="px-4 py-3 text-slate-600">{r.tecnicoNombre}</td>
+              <td className="px-4 py-3 text-slate-600">{r.tipoServicio}</td>
+              {showFecha && <td className="px-4 py-3 text-slate-500">{formatDate(r.updatedAt)}</td>}
+              <td className="px-4 py-3"><StatusBadge estado={r.estado} /></td>
+              <td className="px-4 py-3 text-right">
+                <div className="flex justify-end gap-2">
+                  <Link to={`/solicitud/${r.id}`} className="text-green-700 hover:underline">Ver</Link>
+                  {r.estado === 'FINALIZADA' && !r.tieneResena && (
+                    <button onClick={() => onReview(r)} className="text-amber-600 hover:underline">Resenar</button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function TabButton({ active, onClick, children }) {
+  return (
+    <button onClick={onClick}
+      className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+        active ? 'border-green-700 text-green-800' : 'border-transparent text-slate-500 hover:text-slate-700'
+      }`}>
+      {children}
+    </button>
   )
 }
 

@@ -13,7 +13,7 @@ export default function TechnicianProfile() {
 
   const handleSolicitar = () => {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/solicitar/${id}` } })
+      navigate('/login', { state: { returnTo: `/solicitar/${id}` } })
     } else {
       navigate(`/solicitar/${id}`)
     }
